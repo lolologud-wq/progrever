@@ -1,0 +1,15 @@
+[Unit]
+Description=ProgrEVER Telegram Account Warmer Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/progrever
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/progrever/venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
