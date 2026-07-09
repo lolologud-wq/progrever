@@ -4,6 +4,14 @@ import os
 import sys
 import stat
 
+# Ensure UTF-8 output on Windows consoles
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 try:
     import paramiko
 except ImportError:
@@ -45,7 +53,14 @@ def upload_dir(sftp, local: str, remote: str):
             upload_dir(sftp, lp, rp)
         else:
             print(f"  upload: {item}")
-            sftp.put(lp, rp)
+            # Shell scripts must have Unix line endings on the server
+            if item.endswith(".sh"):
+                with open(lp, "rb") as f:
+                    data = f.read().replace(b"\r\n", b"\n")
+                with sftp.open(rp, "wb") as rf:
+                    rf.write(data)
+            else:
+                sftp.put(lp, rp)
 
 
 def run(client, cmd: str) -> tuple[int, str, str]:

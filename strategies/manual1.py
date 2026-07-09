@@ -15,6 +15,7 @@ Trusted (🟣) accounts send messages to the warming accounts.
 from __future__ import annotations
 
 import asyncio
+import os
 import random
 from datetime import datetime, timedelta
 
@@ -73,7 +74,7 @@ GROUP_NAMES = [
 
 def _make_client(session_name: str) -> Client:
     return Client(
-        name=f"{SESSIONS_DIR}/{session_name}",
+        name=os.path.join(SESSIONS_DIR, session_name),
         api_id=API_ID,
         api_hash=API_HASH,
         no_updates=True,
@@ -106,7 +107,7 @@ async def is_hold_over(account: dict) -> bool:
 
 async def run_profile_change(account: dict) -> bool:
     """Day 1-2 — change bio after hold."""
-    session = account.get("session_file") or account["phone"]
+    session = account.get("session_file") or account["phone"].replace("+", "")
     try:
         async with _make_client(session) as client:
             new_bio = random.choice(BIOS)
@@ -124,7 +125,7 @@ async def run_profile_change(account: dict) -> bool:
 
 async def run_channel_join(account: dict) -> bool:
     """Join 1-2 public channels per day."""
-    session = account.get("session_file") or account["phone"]
+    session = account.get("session_file") or account["phone"].replace("+", "")
     channels = random.sample(WARM_CHANNELS, min(M1_CHANNEL_JOINS_PER_DAY, len(WARM_CHANNELS)))
     joined = 0
     try:
@@ -149,7 +150,7 @@ async def trusted_write_to_account(trusted: dict, target: dict) -> bool:
     A trusted (🟣) account sends a message to a warming account.
     Starts with a sticker if possible, then a short text message.
     """
-    t_session = trusted.get("session_file") or trusted["phone"]
+    t_session = trusted.get("session_file") or trusted["phone"].replace("+", "")
     target_phone = target["phone"]
 
     messages = [

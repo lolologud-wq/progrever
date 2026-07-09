@@ -9,14 +9,14 @@ import os
 
 from telegram import BotCommand
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler,
+    Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters,
 )
 
 from config import BOT_TOKEN, ADMIN_IDS, SESSIONS_DIR
 from database import init_db
-from warming_engine import start_scheduler, set_notify_callback, stop_scheduler
+from warming_engine import init_scheduler, stop_scheduler
 from bot.handlers import (
-    cmd_start, cmd_status, callback_handler,
+    cmd_start, cmd_status, callback_handler, menu_text_handler,
     build_add_account_conv,
 )
 
@@ -28,28 +28,15 @@ logger = logging.getLogger(__name__)
 
 
 async def post_init(app: Application):
-    """Called after the bot is initialized."""
     await init_db()
     os.makedirs(SESSIONS_DIR, exist_ok=True)
     os.makedirs("media", exist_ok=True)
 
     await app.bot.set_my_commands([
         BotCommand("start", "Главное меню"),
-        BotCommand("status", "Быстрый статус всех аккаунтов"),
-        BotCommand("addaccount", "Добавить аккаунт"),
-        BotCommand("cancel", "Отменить действие"),
     ])
 
-    # Set up warming engine notification callback
-    async def notify(text: str):
-        for admin_id in ADMIN_IDS:
-            try:
-                await app.bot.send_message(admin_id, text, parse_mode="HTML")
-            except Exception as e:
-                logger.warning(f"Cannot notify admin {admin_id}: {e}")
-
-    set_notify_callback(notify)
-    start_scheduler()
+    init_scheduler(app)
     logger.info("ProgrEVER bot started!")
 
 
@@ -71,10 +58,10 @@ def main():
         .build()
     )
 
-    # Handlers
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(build_add_account_conv())
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu_text_handler))
     app.add_handler(CallbackQueryHandler(callback_handler))
 
     logger.info("Starting polling...")

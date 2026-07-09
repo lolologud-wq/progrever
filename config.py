@@ -10,49 +10,210 @@ ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "0").split(",") if x
 SESSIONS_DIR = os.getenv("SESSIONS_DIR", "sessions")
 DB_PATH = "progrever.db"
 
-# Warming status thresholds (score 0-100)
+# ── Warming status thresholds (score 0-100) ──────────────
 STATUS_THRESHOLDS = {
-    "green": 85,   # 🟢 Идеально прогретый
-    "yellow": 55,  # 🟡 Хорошо прогрет, но нужно ещё
-    "red": 20,     # 🔴 Плохо прогрет
-    # < red => no session / new
+    "green":  85,
+    "yellow": 55,
+    "red":    20,
 }
 
-# Action delays (seconds)
+# ── Default per-account settings ─────────────────────────
+DEFAULT_HOLD_HOURS   = 24
+DEFAULT_WARMUP_DAYS  = 10
+
+# ── Action delays (seconds) ───────────────────────────────
 DELAY_MIN = 45
 DELAY_MAX = 180
 
-# Manual 1 settings
-M1_HOLD_HOURS = 24          # Hold before any action
-M1_PROFILE_CHANGE_DAY = 2   # Change profile on day 2
-M1_TRUST_MESSAGES_PER_DAY = 3
-M1_CHANNEL_JOINS_PER_DAY = 2
-M1_WARMUP_DAYS = 5
-M1_MAX_FIRST_WRITES_PER_DAY = 8   # after 5+1 days
-
-# Manual 2 settings
-M2_CHANNELS_PER_DAY = 7
-M2_SESSION_HOURS = 5
-M2_WARMUP_WEEKS = 2
-
-# Emoji indicators
+# ── Emoji indicators ──────────────────────────────────────
 EMOJI = {
-    "green":   "🟢",
-    "yellow":  "🟡",
-    "red":     "🔴",
-    "black":   "⚫",
-    "white":   "⚪",
-    "purple":  "🟣",
+    "green":  "🟢",
+    "yellow": "🟡",
+    "red":    "🔴",
+    "black":  "⚫",
+    "white":  "⚪",
+    "purple": "🟣",
 }
 
-# Public channels to join for warming (safe, large communities)
+# ── Legacy constants (kept for compatibility) ─────────────
+M1_HOLD_HOURS          = DEFAULT_HOLD_HOURS
+M1_WARMUP_DAYS         = DEFAULT_WARMUP_DAYS
+M1_PROFILE_CHANGE_DAY  = 1
+M1_TRUST_MESSAGES_PER_DAY = 3
+M1_CHANNEL_JOINS_PER_DAY  = 2
+M1_MAX_FIRST_WRITES_PER_DAY = 8
+
+M2_CHANNELS_PER_DAY = 7
+M2_SESSION_HOURS    = 5
+M2_WARMUP_WEEKS     = 2
+
+# ── Public channels to join ───────────────────────────────
 WARM_CHANNELS = [
-    "durov",
-    "telegram",
-    "TelegramTips",
-    "telegramwallpapers",
+    "durov", "telegram", "TelegramTips", "telegramwallpapers",
+    "cryptonewsru", "bbcrussian", "rian_ru", "meduzaio",
+    "rt_russian", "sport24live", "tjournal", "the_bell_io",
+    "rbc_news", "lentachold", "vedomosti",
 ]
 
-# SpamBot username
-SPAM_BOT = "SpamBot"
+# ── Bot usernames to interact with ────────────────────────
+SPAM_BOT   = "SpamBot"
 BOT_FATHER = "BotFather"
+
+ALL_BOTS = [
+    "SpamBot",
+    "BotFather",
+    "gamee",
+    "sticker",
+    "QuizBot",
+    "YTranslateBot",
+    "weatherman",
+    "TelegramTips",
+    "vote",
+    "MusicBot",
+]
+
+# ── Random contact names ──────────────────────────────────
+RANDOM_FIRST_NAMES = [
+    "Саша", "Маша", "Коля", "Дима", "Лена", "Катя", "Вася",
+    "Серёга", "Андрюша", "Настя", "Оля", "Таня", "Петя", "Женя",
+    "Лёша", "Игорь", "Максим", "Юля", "Даша", "Кирилл",
+    "Артём", "Полина", "Влад", "Аня", "Миша", "Соня", "Стёпа",
+]
+
+RANDOM_LAST_NAMES = [
+    "Иванов", "Петров", "Сидоров", "Кузнецов", "Попов",
+    "Смирнов", "Козлов", "Новиков", "Морозов", "Волков",
+    "Орлов", "Зайцев", "Беляев", "Белов", "Гусев",
+]
+
+CONTACT_LABELS = [
+    "{name}",
+    "Друг {name}",
+    "Коллега {name}",
+    "{name} с работы",
+    "Братуха {name}",
+    "Сосед {name}",
+    "Одногруп {name}",
+    "Знакомый {name}",
+    "Жених {name}",
+    "{name} дружище",
+    "Мой {name}",
+    "{name} хороший",
+]
+
+# ── Personal channel post templates ───────────────────────
+CHANNEL_POST_TEMPLATES = [
+    "Хорошее настроение сегодня ☀️",
+    "Устал, но доволен собой 😌",
+    "Как же хорошо дома 🏠",
+    "Сегодня был насыщенный день 💼",
+    "Погода за окном — огонь 🌤",
+    "Слушаю музыку и кайфую 🎵",
+    "Наконец-то пятница! 🎉",
+    "Приготовил что-то вкусное 🍳",
+    "Прогулялся — отличное настроение 🚶",
+    "Смотрю сериал, не отвлекайте 😄",
+    "Просто хочу сказать — жизнь хороша 🙂",
+    "Немного мыслей перед сном...",
+    "Интересный день выдался 🤔",
+    "Пью кофе и думаю о хорошем ☕",
+    "Вечер пятницы — самое то 🥂",
+    "Скоро выходные, ура! 🌟",
+    "Закончил дела, теперь отдыхаю 💤",
+    "Листаю ленту и радуюсь жизни 📱",
+    "Позвонил маме — хорошо поговорили 📞",
+    "Надо как-нибудь написать больше... когда-нибудь 😅",
+    "Сегодня узнал кое-что интересное 💡",
+    "Новый день — новые возможности 🌱",
+    "Всё идёт по плану 📋",
+    "Небольшой перерыв посреди дня 🛋",
+    "Хорошее начало недели 💪",
+]
+
+CHANNEL_PHOTO_CAPTIONS = [
+    "Момент из сегодняшнего дня 📸",
+    "Просто захотелось поделиться 🙂",
+    "Красота же 😍",
+    "На память 📷",
+    "Случайное фото, но мне нравится",
+    "Из архива 🗂",
+]
+
+CHANNEL_NAMES = [
+    "Мои мысли 📝",
+    "Дневник {name}",
+    "Жизнь {name}",
+    "Заметки дня",
+    "Личный блог 📰",
+    "Всякое разное",
+    "Мир глазами {name}",
+    "Просто интересное",
+    "Мой уголок 🏠",
+    "Записи {name}",
+]
+
+# ── Human-like activity probability by hour (Moscow time) ─
+HOUR_ACTIVITY = {
+    0: 0.05, 1: 0.02, 2: 0.01, 3: 0.01, 4: 0.01, 5: 0.03,
+    6: 0.12, 7: 0.35, 8: 0.55, 9: 0.70, 10: 0.82, 11: 0.78,
+    12: 0.48, 13: 0.52, 14: 0.72, 15: 0.82, 16: 0.78, 17: 0.68,
+    18: 0.62, 19: 0.58, 20: 0.48, 21: 0.35, 22: 0.22, 23: 0.12,
+}
+
+# ── Status messages ───────────────────────────────────────
+SLEEP_MESSAGES = [
+    "Всем спокойной ночи 🌙",
+    "Иду спать, до завтра 😴",
+    "Ложусь, завтра рано вставать",
+    "Всё, отключаюсь на ночь 💤",
+    "До завтра, друзья 🌙",
+]
+
+MORNING_MESSAGES = [
+    "Доброе утро! ☀️",
+    "Просыпаюсь потихоньку ☕",
+    "Новый день — новые дела 🌅",
+    "Всем привет, встаю 👋",
+    "Хорошего всем утра 🌤",
+]
+
+BUSY_MESSAGES = [
+    "Занят, отпишусь позже 🙈",
+    "Не могу сейчас, буду вечером",
+    "На работе, потом отвечу 💼",
+    "Буду позже, секунд нет",
+    "Занят делами, напишу вечером",
+]
+
+# ── Forward post comments ─────────────────────────────────
+FORWARD_COMMENTS = [
+    "Вот это да, интересно 🤔",
+    "Смотри что нашёл, классно ведь?",
+    "Прикольно, да? 😄",
+    "Думаю тебе понравится",
+    "Интересная инфа, оцени",
+    "Вот почитай, занятно",
+    "Наткнулся тут, поделюсь 📌",
+    "Что думаешь об этом?",
+    "Любопытно, не правда ли 😏",
+    "Глянь, мне зашло",
+]
+
+# ── Conversation reply messages ────────────────────────────
+REPLY_MESSAGES = [
+    "Да, согласен 👍",
+    "Точно!",
+    "Ха, и правда 😄",
+    "Да ты что, серьёзно?",
+    "Ого, не знал!",
+    "Интересно 🤔",
+    "Ахах, понял тебя 😄",
+    "Ясно, спасибо",
+    "Хорошо, услышал",
+    "Окей, понял 👌",
+    "Ага, точно так",
+    "Ну и дела!",
+    "А я думал иначе 😅",
+    "Забавно!",
+    "Неплохо, неплохо 😉",
+]

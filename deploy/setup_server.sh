@@ -19,6 +19,12 @@ fi
 
 chmod +x session_login.py 2>/dev/null || true
 
+# Create .env from example if missing
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo "WARNING: .env created from template — fill in BOT_TOKEN, API_ID, API_HASH, ADMIN_IDS"
+fi
+
 cp deploy/progrever.service /etc/systemd/system/progrever.service
 systemctl daemon-reload
 systemctl enable progrever
