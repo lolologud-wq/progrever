@@ -31,7 +31,7 @@ from bot.keyboards import (
     back_to_account_kb, main_reply_kb, hold_kb, warmup_days_kb,
 )
 from bot.states import AWAIT_PHONE, AWAIT_CODE, AWAIT_2FA, AWAIT_TRUSTED, AWAIT_HOLD, AWAIT_WARMUP
-from config import ADMIN_IDS, SESSIONS_DIR, EMOJI, STATUS_THRESHOLDS, API_ID, API_HASH
+from config import ADMIN_IDS, SESSIONS_DIR, EMOJI, STATUS_THRESHOLDS, API_ID, API_HASH, DEFAULT_HOLD_HOURS
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +60,36 @@ def mask_phone(phone: str) -> str:
 def _hold_status_text(acc: dict) -> str:
     hold_hours = acc.get("hold_hours")
     if hold_hours is None:
-        hold_hours = 24
+        hold_hours = DEFAULT_HOLD_HOURS
     if hold_hours <= 0:
         return "Холд отключён — прогрев начнётся сразу"
     return f"Отлежка запущена на {hold_hours}ч"
+
+
+def _hold_enabled(acc: dict) -> bool:
+    hold_hours = acc.get("hold_hours")
+    if hold_hours is None:
+        hold_hours = DEFAULT_HOLD_HOURS
+    return hold_hours > 0
+
+
+def _can_run_now(acc: dict) -> bool:
+    if not acc.get("has_session") or not acc.get("auto_warming", 1):
+        return False
+    if acc.get("warmup_complete") and not acc.get("is_trusted"):
+        return False
+    action = acc.get("next_action")
+    return action not in (None, "", "idle", "paused", "hold_wait")
+
+
+def _detail_kb(acc_id: int, acc: dict) -> InlineKeyboardMarkup:
+    return account_detail_kb(
+        acc_id,
+        auto_on=bool(acc.get("auto_warming", 1)),
+        is_trusted=bool(acc.get("is_trusted")),
+        hold_on=_hold_enabled(acc),
+        show_run_now=_can_run_now(acc),
+    )
 
 
 def format_account_card(acc: dict, logs: list[dict] = None) -> str:
@@ -100,6 +126,10 @@ def format_account_card(acc: dict, logs: list[dict] = None) -> str:
     elif hold_hours <= 0:
         lines.append("⏳ Холд: отключён")
 
+    from strategies.warmer import format_next_action_line
+    if acc.get("has_session"):
+        lines.append(format_next_action_line(acc))
+
     if acc.get("warmup_complete"):
         lines.append("✅ Прогрев завершён!")
 
@@ -114,6 +144,8 @@ def format_account_card(acc: dict, logs: list[dict] = None) -> str:
             "received_message": "📩", "set_avatar": "🖼", "remove_avatar": "🖼",
             "create_channel": "📺", "channel_post": "📝", "forward_post": "↗️",
             "bot_visit": "🤖", "error": "❌",
+            "dm_peer": "💬", "dm_sticker": "🎭", "dm_reply": "💬",
+            "group_chat": "💬", "group_reply": "💬",
         }
         for lg in logs[:3]:
             ts     = lg["ts"][:16]
@@ -308,11 +340,37 @@ async def callback_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             format_account_card(acc, logs),
             parse_mode="HTML",
-            reply_markup=account_detail_kb(
-                acc_id,
-                auto_on=bool(acc.get("auto_warming", 1)),
-                is_trusted=bool(acc.get("is_trusted")),
-            ),
+            reply_markup=_detail_kb(acc_id, acc),
+        )
+
+    elif data.startswith("toggle_hold_"):
+        acc_id = int(data.split("_")[2])
+        acc    = await db.get_account(acc_id)
+        if not acc:
+            await query.edit_message_text("❌ Аккаунт не найден.", reply_markup=back_to_main_kb())
+            return
+
+        from strategies.warmer import do_hold
+
+        if _hold_enabled(acc):
+            await db.update_account(acc_id, hold_hours=0, hold_until=None)
+            label = "🛏 Холд выключен — прогрев без отлежки"
+        else:
+            hold_hours = DEFAULT_HOLD_HOURS
+            await db.update_account(acc_id, hold_hours=hold_hours)
+            acc = await db.get_account(acc_id)
+            await do_hold(acc)
+            label = f"🛏 Холд включён — отлежка {hold_hours}ч"
+
+        from warming_engine import replan_account
+        await replan_account(acc_id)
+
+        acc  = await db.get_account(acc_id)
+        logs = await db.get_logs(acc_id, 3)
+        await query.edit_message_text(
+            f"{label}\n\n" + format_account_card(acc, logs),
+            parse_mode="HTML",
+            reply_markup=_detail_kb(acc_id, acc),
         )
 
     elif data.startswith("toggle_auto_"):
@@ -320,13 +378,18 @@ async def callback_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         acc     = await db.get_account(acc_id)
         new_val = 0 if acc.get("auto_warming", 1) else 1
         await db.update_account(acc_id, auto_warming=new_val)
+        from warming_engine import replan_account
+        if new_val:
+            await replan_account(acc_id)
+        else:
+            await db.update_account(acc_id, next_action="paused", next_action_at=None)
         label = "▶️ Авто-прогрев включён!" if new_val else "⏸ Авто-прогрев выключен."
         acc  = await db.get_account(acc_id)
         logs = await db.get_logs(acc_id, 3)
         await query.edit_message_text(
             f"{label}\n\n" + format_account_card(acc, logs),
             parse_mode="HTML",
-            reply_markup=account_detail_kb(acc_id, bool(new_val), bool(acc.get("is_trusted"))),
+            reply_markup=_detail_kb(acc_id, acc),
         )
 
     elif data.startswith("toggle_trust_"):
@@ -340,7 +403,7 @@ async def callback_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(
             f"{label}\n\n" + format_account_card(acc, logs),
             parse_mode="HTML",
-            reply_markup=account_detail_kb(acc_id, bool(acc.get("auto_warming", 1)), bool(new_val)),
+            reply_markup=_detail_kb(acc_id, acc),
         )
 
     elif data.startswith("delete_"):
@@ -378,15 +441,30 @@ async def callback_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("do_hold_"):
         acc_id = int(data.split("_")[2])
         acc    = await db.get_account(acc_id)
+        if not _hold_enabled(acc):
+            logs = await db.get_logs(acc_id, 3)
+            await query.edit_message_text(
+                "⚠️ Холд отключён. Включи его кнопкой «🛏 Холд ВКЛ».\n\n" + format_account_card(acc, logs),
+                parse_mode="HTML",
+                reply_markup=_detail_kb(acc_id, acc),
+            )
+            return
         from strategies.warmer import do_hold
         await do_hold(acc)
+        from warming_engine import replan_account
+        await replan_account(acc_id)
         acc  = await db.get_account(acc_id)
         logs = await db.get_logs(acc_id, 3)
         await query.edit_message_text(
             f"🛏 {_hold_status_text(acc)}.\n\n" + format_account_card(acc, logs),
             parse_mode="HTML",
-            reply_markup=account_detail_kb(acc_id, bool(acc.get("auto_warming", 1)), bool(acc.get("is_trusted"))),
+            reply_markup=_detail_kb(acc_id, acc),
         )
+
+    elif data.startswith("run_now_"):
+        acc_id = int(data.split("_")[2])
+        await query.edit_message_text("⚡ Выполняю запланированное действие...")
+        asyncio.create_task(_action_run_now(query, acc_id))
 
     elif data.startswith("do_create_grp_"):
         acc_id = int(data.split("_")[3])
@@ -745,12 +823,20 @@ async def _reload_and_show(query, acc_id: int, prefix: str = ""):
     text = (prefix + "\n\n" + format_account_card(acc, logs)).strip()
     await query.edit_message_text(
         text, parse_mode="HTML",
-        reply_markup=account_detail_kb(
-            acc_id,
-            auto_on=bool(acc.get("auto_warming", 1)),
-            is_trusted=bool(acc.get("is_trusted")),
-        ),
+        reply_markup=_detail_kb(acc_id, acc),
     )
+
+
+async def _action_run_now(query, acc_id: int):
+    from warming_engine import execute_account_now
+    try:
+        result = await execute_account_now(acc_id)
+        await _reload_and_show(query, acc_id, result)
+    except Exception as e:
+        await query.edit_message_text(
+            f"❌ Ошибка: {e}",
+            reply_markup=back_to_account_kb(acc_id),
+        )
 
 
 async def _action_spambot(query, acc_id: int):

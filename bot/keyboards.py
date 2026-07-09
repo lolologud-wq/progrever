@@ -39,10 +39,30 @@ def accounts_list_kb(accounts: list[dict]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(rows)
 
 
-def account_detail_kb(acc_id: int, auto_on: bool, is_trusted: bool) -> InlineKeyboardMarkup:
+def account_detail_kb(
+    acc_id: int,
+    auto_on: bool,
+    is_trusted: bool,
+    hold_on: bool = True,
+    show_run_now: bool = False,
+) -> InlineKeyboardMarkup:
     auto_label  = "⏸ Авто ВЫКЛ" if auto_on else "▶️ Авто ВКЛ"
     trust_label = "🟣 Trusted ВЫКЛ" if is_trusted else "🟣 Trusted ВКЛ"
-    return InlineKeyboardMarkup([
+    hold_label  = "🛏 Холд ВЫКЛ" if hold_on else "🛏 Холд ВКЛ"
+
+    rows = []
+    if show_run_now:
+        rows.append([
+            InlineKeyboardButton("⚡ Выполнить сейчас", callback_data=f"run_now_{acc_id}"),
+        ])
+
+    hold_row = [InlineKeyboardButton(hold_label, callback_data=f"toggle_hold_{acc_id}")]
+    if hold_on:
+        hold_row.append(
+            InlineKeyboardButton("🔄 Перезапуск холда", callback_data=f"do_hold_{acc_id}")
+        )
+
+    rows += [
         [
             InlineKeyboardButton("🤖 SpamBot",          callback_data=f"do_spambot_{acc_id}"),
             InlineKeyboardButton("📢 Вступить в канал", callback_data=f"do_join_{acc_id}"),
@@ -52,13 +72,13 @@ def account_detail_kb(acc_id: int, auto_on: bool, is_trusted: bool) -> InlineKey
             InlineKeyboardButton("📝 Обновить профиль", callback_data=f"do_profile_{acc_id}"),
         ],
         [
-            InlineKeyboardButton("🛏 Отлежка",          callback_data=f"do_hold_{acc_id}"),
             InlineKeyboardButton("🏠 Создать группу",   callback_data=f"do_create_grp_{acc_id}"),
+            InlineKeyboardButton("📺 Создать канал",    callback_data=f"do_channel_{acc_id}"),
         ],
         [
-            InlineKeyboardButton("📺 Создать канал",    callback_data=f"do_channel_{acc_id}"),
             InlineKeyboardButton("📬 Написать в канал", callback_data=f"do_chpost_{acc_id}"),
         ],
+        hold_row,
         [
             InlineKeyboardButton(auto_label,             callback_data=f"toggle_auto_{acc_id}"),
             InlineKeyboardButton(trust_label,            callback_data=f"toggle_trust_{acc_id}"),
@@ -67,7 +87,8 @@ def account_detail_kb(acc_id: int, auto_on: bool, is_trusted: bool) -> InlineKey
             InlineKeyboardButton("🗑 Удалить",           callback_data=f"delete_{acc_id}"),
             InlineKeyboardButton("◀️ К аккаунтам",      callback_data="accounts_list"),
         ],
-    ])
+    ]
+    return InlineKeyboardMarkup(rows)
 
 
 def confirm_delete_kb(acc_id: int) -> InlineKeyboardMarkup:

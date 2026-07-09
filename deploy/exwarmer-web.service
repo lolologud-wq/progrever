@@ -1,0 +1,15 @@
+[Unit]
+Description=exwarmer Web Dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/progrever
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/progrever/venv/bin/uvicorn web.server:app --host 0.0.0.0 --port 8080
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>exwarmer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+    <!-- Login screen -->
+    <div id="login" class="login-screen">
+        <div class="login-card">
+            <div class="login-logo">exwarmer</div>
+            <p class="login-sub">Панель управления прогревом аккаунтов</p>
+            <input id="login-password" type="password" placeholder="Пароль" autocomplete="current-password" />
+            <button id="login-btn" class="btn btn-primary btn-block">Войти</button>
+            <div id="login-error" class="login-error"></div>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div id="app" class="app hidden">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">ex</div>
+                <span class="brand-name">exwarmer</span>
+            </div>
+            <nav class="nav">
+                <button class="nav-item active" data-view="dashboard">
+                    <span class="nav-ic">▦</span> Дашборд
+                </button>
+                <button class="nav-item" data-view="accounts">
+                    <span class="nav-ic">☰</span> Аккаунты
+                </button>
+                <button class="nav-item" data-view="add">
+                    <span class="nav-ic">＋</span> Добавить
+                </button>
+            </nav>
+            <div class="sidebar-foot">
+                <button id="logout-btn" class="nav-item subtle">⏻ Выйти</button>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <div class="topbar-tabs">
+                    <button class="tab active" data-view="dashboard">Dashboard</button>
+                    <button class="tab" data-view="accounts">People</button>
+                    <button class="tab" data-view="add">Hiring</button>
+                </div>
+                <div class="topbar-actions">
+                    <button id="refresh-btn" class="chip">⟳ Обновить</button>
+                    <button id="cycle-btn" class="chip chip-dark">⚡ Прогреть все</button>
+                    <div class="avatar">A</div>
+                </div>
+            </header>
+
+            <!-- Dashboard view -->
+            <section id="view-dashboard" class="view">
+                <div class="hello">
+                    <h1>Привет, Админ</h1>
+                    <p class="muted" id="hello-date"></p>
+                </div>
+
+                <div class="grid-top">
+                    <div class="panel progress-panel">
+                        <div class="panel-head">
+                            <h3>Прогресс прогрева</h3>
+                        </div>
+                        <div class="progress-rows" id="progress-rows"></div>
+                    </div>
+
+                    <div class="stat-cards" id="stat-cards"></div>
+                </div>
+
+                <div class="grid-main">
+                    <div class="panel table-panel">
+                        <div class="panel-head">
+                            <h3>Аккаунты</h3>
+                            <input id="dash-search" class="search" placeholder="🔍 Поиск..." />
+                            <button class="icon-link" data-view="accounts">↗</button>
+                        </div>
+                        <div class="table" id="dash-table"></div>
+                    </div>
+
+                    <div class="panel dark-panel">
+                        <div class="panel-head">
+                            <h3>Статусы</h3>
+                            <span class="dot-badge">●</span>
+                        </div>
+                        <div class="attendance">
+                            <div class="att-big" id="att-active">0</div>
+                            <div class="att-sub">активно прогреваются</div>
+                        </div>
+                        <div class="status-legend" id="status-legend"></div>
+                    </div>
+                </div>
+
+                <div class="grid-bottom">
+                    <div class="panel chart-panel">
+                        <div class="panel-head">
+                            <h3>Статистика прогрева</h3>
+                        </div>
+                        <div class="bars" id="score-bars"></div>
+                    </div>
+
+                    <div class="panel comp-panel">
+                        <div class="panel-head">
+                            <h3>Состав аккаунтов</h3>
+                        </div>
+                        <div class="donut-wrap">
+                            <div class="donut" id="donut"></div>
+                            <div class="donut-center">
+                                <div class="donut-total" id="donut-total">0</div>
+                                <div class="muted">всего</div>
+                            </div>
+                        </div>
+                        <div class="comp-legend" id="comp-legend"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Accounts view -->
+            <section id="view-accounts" class="view hidden">
+                <div class="hello">
+                    <h1>Аккаунты</h1>
+                    <p class="muted">Управление и прогрев</p>
+                </div>
+                <div class="panel">
+                    <div class="panel-head">
+                        <input id="acc-search" class="search wide" placeholder="🔍 Поиск по номеру / юзернейму..." />
+                    </div>
+                    <div class="table" id="accounts-table"></div>
+                </div>
+            </section>
+
+            <!-- Add view -->
+            <section id="view-add" class="view hidden">
+                <div class="hello">
+                    <h1>Добавить аккаунт</h1>
+                    <p class="muted">Вход через Telegram</p>
+                </div>
+                <div class="panel add-panel">
+                    <div id="add-steps" class="add-steps"></div>
+
+                    <!-- step: phone -->
+                    <div id="step-phone" class="add-step">
+                        <label>Номер телефона</label>
+                        <input id="add-phone" placeholder="+79001234567" />
+                        <button id="add-phone-btn" class="btn btn-primary">Отправить код</button>
+                    </div>
+
+                    <!-- step: code -->
+                    <div id="step-code" class="add-step hidden">
+                        <label>Код из Telegram</label>
+                        <input id="add-code" placeholder="12345" inputmode="numeric" />
+                        <button id="add-code-btn" class="btn btn-primary">Подтвердить код</button>
+                    </div>
+
+                    <!-- step: 2fa -->
+                    <div id="step-2fa" class="add-step hidden">
+                        <label>Облачный пароль (2FA)</label>
+                        <input id="add-2fa" type="password" placeholder="Пароль" />
+                        <button id="add-2fa-btn" class="btn btn-primary">Войти</button>
+                    </div>
+
+                    <!-- step: options -->
+                    <div id="step-options" class="add-step hidden">
+                        <div class="opt-row">
+                            <label class="switch-row">
+                                <span>🟣 Трастовый донор</span>
+                                <input id="add-trusted" type="checkbox" />
+                            </label>
+                        </div>
+                        <div class="opt-row">
+                            <label>Холд перед прогревом (часов, 0 = выкл)</label>
+                            <input id="add-hold" type="number" min="0" value="24" />
+                        </div>
+                        <div class="opt-row">
+                            <label>Длительность прогрева (дней)</label>
+                            <input id="add-warmup" type="number" min="1" value="10" />
+                        </div>
+                        <button id="add-finalize-btn" class="btn btn-primary">Создать аккаунт</button>
+                    </div>
+
+                    <div id="add-error" class="add-error"></div>
+                    <div id="add-success" class="add-success hidden"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Account detail modal -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-card" id="modal-card"></div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

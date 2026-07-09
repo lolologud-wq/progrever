@@ -14,7 +14,7 @@ from telegram.ext import (
 
 from config import BOT_TOKEN, ADMIN_IDS, SESSIONS_DIR
 from database import init_db
-from warming_engine import init_scheduler, stop_scheduler
+from warming_engine import init_scheduler, stop_scheduler, ensure_schedules
 from bot.handlers import (
     cmd_start, cmd_status, callback_handler, menu_text_handler,
     build_add_account_conv,
@@ -37,6 +37,7 @@ async def post_init(app: Application):
     ])
 
     init_scheduler(app)
+    await ensure_schedules()
     logger.info("ProgrEVER bot started!")
 
 

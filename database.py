@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS accounts (
     groups_count INTEGER DEFAULT 0,
     own_channels TEXT DEFAULT '[]',
     warmup_complete INTEGER DEFAULT 0,
+    next_action TEXT,
+    next_action_at TEXT,
+    warm_step_count INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     last_active TEXT,
     notes TEXT
@@ -87,13 +90,32 @@ _MIGRATIONS = [
     ("accounts", "warmup_days",        "INTEGER DEFAULT 10"),
     ("accounts", "own_channels",       "TEXT DEFAULT '[]'"),
     ("accounts", "warmup_complete",    "INTEGER DEFAULT 0"),
+    ("accounts", "next_action",        "TEXT"),
+    ("accounts", "next_action_at",     "TEXT"),
+    ("accounts", "warm_step_count",    "INTEGER DEFAULT 0"),
+]
+
+_PENDING_MIGRATIONS = [
+    ("pending_responses", "target_phone",   "TEXT"),
+    ("pending_responses", "chat_id",        "INTEGER"),
+    ("pending_responses", "response_type",  "TEXT DEFAULT 'dm'"),
 ]
 
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as conn:
+        try:
+            await conn.execute("PRAGMA journal_mode=WAL")
+            await conn.execute("PRAGMA busy_timeout=5000")
+        except Exception:
+            pass
         await conn.executescript(CREATE_TABLES)
         for table, column, definition in _MIGRATIONS:
+            try:
+                await conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+            except Exception:
+                pass
+        for table, column, definition in _PENDING_MIGRATIONS:
             try:
                 await conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
             except Exception:
@@ -249,11 +271,45 @@ async def get_all_groups() -> list[dict]:
         return [dict(r) for r in rows]
 
 
+async def get_accounts_due_for_action() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+        cur = await conn.execute(
+            """SELECT * FROM accounts
+               WHERE has_session=1
+                 AND auto_warming=1
+                 AND next_action IS NOT NULL
+                 AND next_action NOT IN ('idle', '')
+                 AND next_action_at IS NOT NULL
+                 AND next_action_at <= datetime('now')
+               ORDER BY next_action_at"""
+        )
+        rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+
+async def get_accounts_without_schedule() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as conn:
+        conn.row_factory = aiosqlite.Row
+        cur = await conn.execute(
+            """SELECT * FROM accounts
+               WHERE has_session=1
+                 AND auto_warming=1
+                 AND (next_action IS NULL OR next_action_at IS NULL)
+                 AND (warmup_complete=0 OR is_trusted=1)"""
+        )
+        rows = await cur.fetchall()
+        return [dict(r) for r in rows]
+
+
 async def add_pending_response(
     account_id: int,
-    to_user_id: int,
     message: str,
     delay_seconds: int,
+    target_phone: str = None,
+    chat_id: int = None,
+    response_type: str = "dm",
+    to_user_id: int = 0,
 ):
     from datetime import timedelta
     respond_after = (
@@ -261,9 +317,10 @@ async def add_pending_response(
     ).isoformat()
     async with aiosqlite.connect(DB_PATH) as conn:
         await conn.execute(
-            "INSERT INTO pending_responses (account_id, to_user_id, message, respond_after) "
-            "VALUES (?,?,?,?)",
-            (account_id, to_user_id, message, respond_after),
+            "INSERT INTO pending_responses "
+            "(account_id, to_user_id, message, respond_after, target_phone, chat_id, response_type) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (account_id, to_user_id, message, respond_after, target_phone, chat_id, response_type),
         )
         await conn.commit()
 
